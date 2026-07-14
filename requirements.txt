@@ -1,0 +1,14 @@
+customtkinter>=5.2.2
+playwright>=1.42.0
+requests>=2.31.0
+pandas>=2.2.1
+openpyxl>=3.1.2
+rapidfuzz>=3.6.1
+loguru>=0.7.2
+rich>=13.7.1
+tqdm>=4.66.2
+python-dotenv>=1.0.1
+fpdf2>=2.7.9
+pyinstaller>=6.5.0
+cryptography>=42.0.5
+psutil>=5.9.0
