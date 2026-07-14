@@ -297,9 +297,21 @@ class MapsScraper:
             if plus_loc.count() > 0:
                 shop.plus_code = plus_loc.inner_text().strip().replace(" Plus Code", "")
             body_txt = page.locator("body").inner_text()
-            if "Permanently closed" in body_txt:
+            if not shop.pincode:
+                pincode_match = re.search(r"\b\d{6}\b", body_txt)
+                if pincode_match:
+                    shop.pincode = pincode_match.group(0)
+
+            status_text = ""
+            if shop.open_closed_status:
+                status_text = shop.open_closed_status.lower()
+            body_lower = body_txt.lower()
+            if "permanently closed" in status_text or "permanently closed" in body_lower:
                 shop.business_status = "CLOSED_PERMANENTLY"
-            elif "Temporarily closed" in body_txt:
+            elif "temporarily closed" in status_text or "temporarily closed" in body_lower:
+                shop.business_status = "CLOSED_TEMPORARILY"
+            elif "closed" in status_text:
+                # Fallback for any closed indication not explicitly temporary/permanent
                 shop.business_status = "CLOSED_TEMPORARILY"
             else:
                 shop.business_status = "OPERATIONAL"

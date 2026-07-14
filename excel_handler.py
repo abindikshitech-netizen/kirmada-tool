@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import time
 from typing import List, Tuple
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -94,17 +95,38 @@ class ExcelHandler:
                 "Failed (Errors)": len(df_failed)
             }])
 
-            sheets_data = {"Verified": df_verified, "Manual Review": df_manual, "Failed": df_failed, "Summary": df_summary}
+            sheets_data = {
+                "All Records": df_all,
+                "Verified": df_verified,
+                "Manual Review": df_manual,
+                "Failed": df_failed,
+                "Summary": df_summary,
+            }
             
             for sheet_name, df in sheets_data.items():
                 ws = wb.create_sheet(title=sheet_name)
                 for row in dataframe_to_rows(df, index=False, header=True): ws.append(row)
                 self._format_sheet(ws)
             
-            output_file = os.path.join(self.output_path, "Updated_Jewellery_Shops.xlsx")
-            wb.save(output_file)
+            os.makedirs(self.output_path, exist_ok=True)
+            output_dir = os.path.abspath(self.output_path)
+            base_name = "Updated_Jewellery_Shops.xlsx"
+            output_file = os.path.join(output_dir, base_name)
+            temp_file = os.path.join(output_dir, "Updated_Jewellery_Shops.tmp")
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            wb.save(temp_file)
             wb.close()
-            app_logger.info(f"Successfully wrote output to {output_file}")
+
+            final_output_file = output_file
+            if os.path.exists(output_file):
+                try:
+                    os.remove(output_file)
+                except PermissionError:
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    final_output_file = os.path.join(output_dir, f"Updated_Jewellery_Shops_{timestamp}.xlsx")
+            os.replace(temp_file, final_output_file)
+            app_logger.info(f"Successfully wrote output to {final_output_file}")
             
         except Exception as e:
             app_logger.error(f"Failed to write output Excel: {e}")
