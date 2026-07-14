@@ -84,6 +84,34 @@ def human_like_click(page, locator):
         except Exception:
             return False
 
+
+def navigate_to_google_maps(page):
+    page.goto("https://www.google.com/maps", wait_until="domcontentloaded", timeout=60000)
+    page.wait_for_timeout(3000)
+
+
+def wait_for_google_maps_search_box(page):
+    candidates = [
+        ("page.get_by_role('textbox')", page.get_by_role("textbox")),
+        ("locator('input[aria-label*=\"Search\"]')", page.locator("input[aria-label*='Search']")),
+        ("locator('input[placeholder*=\"Search\"]')", page.locator("input[placeholder*='Search']")),
+        ("locator('input')", page.locator("input")),
+    ]
+
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        for selector_name, locator in candidates:
+            try:
+                for i in range(locator.count()):
+                    box = locator.nth(i)
+                    if box.is_visible() and box.is_editable():
+                        return box, selector_name
+            except Exception:
+                continue
+        page.wait_for_timeout(500)
+    return None, None
+
+
 class MapsScraper:
     _queue = queue.Queue()
     _worker_thread = None
@@ -135,20 +163,20 @@ class MapsScraper:
             page.set_default_timeout(PLAYWRIGHT_TIMEOUT)
             page.evaluate("() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }); }")
             app_logger.info("Navigating to Google Maps")
-            page.goto("https://www.google.com/maps", wait_until="domcontentloaded")
-            app_logger.info("Waiting for networkidle load state...")
-            page.wait_for_load_state("networkidle")
-            page.wait_for_timeout(random.randint(800, 2000))
+            navigate_to_google_maps(page)
+            curr_url = page.url
+            curr_title = page.title()
+            app_logger.info(f"Page URL: {curr_url}")
+            app_logger.info(f"Page Title: {curr_title}")
+            app_logger.info("Navigation Complete")
             if check_for_captcha(page):
                 app_logger.warning("CAPTCHA detected on load. Attempting reload...")
-                page.reload()
-                page.wait_for_timeout(random.randint(3000, 6000))
+                navigate_to_google_maps(page)
                 if check_for_captcha(page):
                     app_logger.warning("CAPTCHA remains. Re-creating page context...")
                     page.close()
                     page = context.new_page()
-                    page.goto("https://www.google.com/maps")
-                    page.wait_for_timeout(random.randint(3000, 5000))
+                    navigate_to_google_maps(page)
             # Consent handling
             try:
                 consent_button = page.locator("button:has-text('Accept all')")
@@ -157,43 +185,8 @@ class MapsScraper:
                     page.wait_for_timeout(random.randint(500, 1200))
             except Exception:
                 pass
-            curr_url = page.url
-            curr_title = page.title()
-            app_logger.info(f"Current URL: {curr_url}")
-            app_logger.info(f"Current Title: {curr_title}")
             # Resilient search box locating
-            search_box = None
-            chosen_selector = None
-            try:
-                textboxes = page.get_by_role("textbox")
-                for i in range(textboxes.count()):
-                    box = textboxes.nth(i)
-                    if box.is_visible() and box.is_editable():
-                        search_box = box
-                        chosen_selector = "page.get_by_role('textbox')"
-                        break
-            except Exception:
-                pass
-            if not search_box:
-                selectors = [
-                    ("input[aria-label*='Search']", "locator('input[aria-label*=\"Search\"]')"),
-                    ("input[aria-label*='search']", "locator('input[aria-label*=\"search\"]')"),
-                    ("input[placeholder*='Search']", "locator('input[placeholder*=\"Search\"]')"),
-                    ("input", "locator('input')")
-                ]
-                for sel, name in selectors:
-                    try:
-                        loc = page.locator(sel)
-                        for i in range(loc.count()):
-                            box = loc.nth(i)
-                            if box.is_visible() and box.is_editable():
-                                search_box = box
-                                chosen_selector = name
-                                break
-                        if search_box:
-                            break
-                    except Exception:
-                        pass
+            search_box, chosen_selector = wait_for_google_maps_search_box(page)
             if not search_box:
                 app_logger.error("Search box cannot be found!")
                 safe_name = sanitize_filename(shop.shop_name)
@@ -206,13 +199,13 @@ class MapsScraper:
                 nav_end = time.perf_counter()
                 return False, (nav_end - nav_start), 0.0, "search_box_not_found"
             app_logger.info(f"Chosen Selector: {chosen_selector}")
-            app_logger.info("Search box found")
+            app_logger.info("Search Box Found")
             human_like_mouse_move(page)
             human_like_click(page, search_box)
-            app_logger.info("Search started")
+            app_logger.info("Search Started")
             search_box.fill(query)
             search_box.press("Enter")
-            app_logger.info("Search completed")
+            app_logger.info("Search Completed")
             app_logger.info("Waiting for results")
             try:
                 page.wait_for_selector("div[role='main']", timeout=15000)
