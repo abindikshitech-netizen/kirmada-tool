@@ -3,6 +3,7 @@
 An enterprise-grade desktop application to verify and enrich jewellery shop addresses using Google Places API, Geocoding, Playwright-based web scraping, and a fallback web search.
 
 ## Features
+
 - Multi-tier search pipeline (Google API -> Google Maps Scraper -> Google Search).
 - Intelligent Verification Engine with weighted confidence scoring.
 - Caching to minimize redundant API calls.
@@ -74,7 +75,9 @@ The tool exports an updated Excel workbook to the selected output folder. If the
 ## Build executable
 
 To build a standalone Windows executable:
+
 ```powershell
 python build.py
 ```
+
 The generated files will be placed in the `dist/` folder.
