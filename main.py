@@ -173,7 +173,7 @@ class Orchestrator:
                 shop.latest_address = cached_data.get("Latest Complete Address", "")
                 shop.phone_number = cached_data.get("Phone Number", "")
                 shop.business_status = cached_data.get("Business Status", "")
-                shop.verification_status = cached_data.get("Verification Status", "")
+                shop.verification_status = cached_data.get("Verification Status", "") or STATUS_MANUAL_REVIEW
                 shop.confidence_score = cached_data.get("Confidence Score", 0)
                 shop.data_source = cached_data.get("Data Source", "")
                 shop.latitude = cached_data.get("Latitude", 0.0)
@@ -190,6 +190,8 @@ class Orchestrator:
                 shop.place_id = cached_data.get("Place ID", "")
                 shop.error_message = cached_data.get("Error Message", "")
                 
+                if not shop.verification_status and shop.error_message:
+                    shop.verification_status = "Failed"
                 shop.processed = True
                 perf_tracker.record_success()
                 return shop
@@ -353,7 +355,7 @@ class Orchestrator:
                         shop.latest_address = cached_data.get("Latest Complete Address", "")
                         shop.phone_number = cached_data.get("Phone Number", "")
                         shop.business_status = cached_data.get("Business Status", "")
-                        shop.verification_status = cached_data.get("Verification Status", "")
+                        shop.verification_status = cached_data.get("Verification Status", "") or STATUS_MANUAL_REVIEW
                         shop.confidence_score = cached_data.get("Confidence Score", 0)
                         shop.data_source = cached_data.get("Data Source", "")
                         shop.latitude = cached_data.get("Latitude", 0.0)
@@ -368,6 +370,8 @@ class Orchestrator:
                         shop.plus_code = cached_data.get("Plus Code", "")
                         shop.place_id = cached_data.get("Place ID", "")
                         shop.error_message = cached_data.get("Error Message", "")
+                        if not shop.verification_status and not shop.error_message:
+                            shop.verification_status = STATUS_MANUAL_REVIEW
                         shop.processed = True
                         audit_tracker.processing_count += 1
                         audit_tracker.completed_count += 1
@@ -398,8 +402,8 @@ class Orchestrator:
                 
                 audit_tracker.completed_count = sum(1 for shop in self.shops if shop.processed)
                 audit_tracker.verified_count = sum(1 for shop in self.shops if shop.verification_status in ["Verified", "Likely Match"])
-                audit_tracker.failed_count = sum(1 for shop in self.shops if shop.error_message != "")
-                audit_tracker.manual_review_count = sum(1 for shop in self.shops if shop.verification_status == "Manual Review" and shop.error_message == "")
+                audit_tracker.failed_count = sum(1 for shop in self.shops if shop.error_message != "" or shop.verification_status == "Failed")
+                audit_tracker.manual_review_count = sum(1 for shop in self.shops if shop.verification_status in ["Manual Review", ""] and shop.error_message == "")
                 
                 app_logger.info(f"Processed {audit_tracker.completed_count}")
                 app_logger.info(f"Verified {audit_tracker.verified_count}")
